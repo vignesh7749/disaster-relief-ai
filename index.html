@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Disaster Relief AI</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: white;
+            text-align: center;
+        }
+
+        h1 {
+            margin-top: 20px;
+        }
+
+        .controls {
+            margin: 20px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 10px;
+            background: #38bdf8;
+            color: black;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(10, 45px);
+            gap: 6px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .cell {
+            width: 45px;
+            height: 45px;
+            border-radius: 8px;
+            background: #334155;
+            transition: 0.3s;
+        }
+
+        .vehicle {
+            background: #3b82f6;
+            box-shadow: 0 0 15px #3b82f6;
+            transform: scale(1.1);
+            transition: all 0.3s ease;
+        }
+
+        .blocked {
+            background: #ef4444;
+        }
+
+        .delivery-high {
+            background: #22c55e;
+        }
+
+        .delivery-medium {
+            background: #eab308;
+        }
+
+        .delivery-low {
+            background: #a855f7;
+        }
+
+        .stats {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+        }
+
+        .card {
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+        .path {
+    border: 2px solid yellow;
+    box-shadow: 0 0 8px yellow;
+}
+    </style>
+    <button onclick="window.open('/docs', '_blank')">API Docs</button>
+</head>
+
+<body>
+
+<h1>🚨 Disaster Relief Logistics AI</h1>
+
+<div class="controls">
+    <button onclick="resetEnv()">Reset</button>
+    <button onclick="autoRun()">Auto Run</button>
+</div>
+
+<div class="stats">
+    <div class="card">🔋 Battery: <span id="battery">0</span></div>
+    <div class="card">📦 Deliveries: <span id="deliveries">0</span></div>
+    <div class="card">⏱ Time: <span id="time">0</span></div>
+</div>
+
+<div class="grid" id="grid"></div>
+<div id="status" style="margin-top:20px;font-size:18px;"></div>
+<script>
+let state = {};
+let running = false;
+let currentPath = [];
+
+async function resetEnv() {
+    const res = await fetch("/reset", { method: "POST" });
+    state = await res.json();
+    currentPath = [];
+    render();
+}
+
+function updateStatus() {
+    if (!state.pending_deliveries.length) {
+        document.getElementById("status").innerText = "✅ All deliveries completed!";
+        return;
+    }
+
+    const next = state.pending_deliveries[0];
+
+    document.getElementById("status").innerText =
+        `🚚 Delivering ${next.priority.toUpperCase()} priority aid to (${next.location})`;
+}
+
+// 🧠 BFS pathfinding (same as backend logic)
+function getNeighbors(node) {
+    let [x, y] = node;
+    return [
+        [x+1,y], [x-1,y],
+        [x,y+1], [x,y-1],
+        [x+1,y+1], [x-1,y-1],
+        [x+1,y-1], [x-1,y+1]
+    ];
+}
+
+function findPath(start, goal, blocked) {
+    let queue = [[start, []]];
+    let visited = new Set();
+
+    while (queue.length > 0) {
+        let [current, path] = queue.shift();
+
+        if (current[0] === goal[0] && current[1] === goal[1]) {
+            return [...path, current];
+        }
+
+        for (let n of getNeighbors(current)) {
+            let key = n.toString();
+
+            if (
+                n[0] >= 0 && n[0] < 10 &&
+                n[1] >= 0 && n[1] < 10 &&
+                !blocked.some(b => b[0] === n[0] && b[1] === n[1]) &&
+                !visited.has(key)
+            ) {
+                visited.add(key);
+                queue.push([n, [...path, current]]);
+            }
+        }
+    }
+
+    return [];
+}
+
+// 🎯 choose highest priority
+function getPriorityTarget() {
+    const priorities = { high: 3, medium: 2, low: 1 };
+    return state.pending_deliveries.sort(
+        (a, b) => priorities[b.priority] - priorities[a.priority]
+    )[0];
+}
+
+// 🚀 step using path
+async function stepEnv() {
+    if (!state.pending_deliveries.length) {
+        running = false;
+        return;
+    }
+
+    const target = getPriorityTarget();
+
+    // compute path once
+    if (currentPath.length === 0) {
+        currentPath = findPath(
+            state.vehicle_location,
+            target.location,
+            state.blocked_cells
+        );
+    }
+
+    // move step-by-step
+    if (currentPath.length > 1) {
+        const next = currentPath[1];
+
+        const res = await fetch("/step", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ move: next })
+        });
+
+        const data = await res.json();
+        state = data.observation;
+
+        currentPath.shift(); // remove visited
+    } else {
+        currentPath = [];
+    }
+
+    render();
+}
+
+// ⚡ auto run
+async function autoRun() {
+    running = true;
+
+    if (!state.pending_deliveries.length) {
+    document.body.style.background = "linear-gradient(135deg, #065f46, #022c22)";
+}
+
+    while (running && state.pending_deliveries.length > 0) {
+        await stepEnv();
+        await new Promise(r => setTimeout(r, 400));
+    }
+}
+
+// 🎨 render grid
+function render() {
+    const grid = document.getElementById("grid");
+    grid.innerHTML = "";
+
+    document.getElementById("battery").innerText = state.battery_level.toFixed(1);
+    document.getElementById("deliveries").innerText = state.pending_deliveries.length;
+    document.getElementById("time").innerText = state.time_elapsed;
+    updateStatus();
+
+    for (let i = 0; i < 10; i++) {
+        for (let j = 0; j < 10; j++) {
+            const cell = document.createElement("div");
+            cell.classList.add("cell");
+
+            // vehicle
+            if (state.vehicle_location[0] === i && state.vehicle_location[1] === j) {
+                cell.classList.add("vehicle");
+            }
+
+            // blocked
+            state.blocked_cells.forEach(b => {
+                if (b[0] === i && b[1] === j) {
+                    cell.classList.add("blocked");
+                }
+            });
+
+            // deliveries
+            state.pending_deliveries.forEach(d => {
+                if (d.location[0] === i && d.location[1] === j) {
+                    cell.classList.add("delivery-" + d.priority);
+                }
+            });
+
+            // 🟡 path highlight
+            currentPath.forEach(p => {
+                if (p[0] === i && p[1] === j) {
+                    cell.classList.add("path");
+                }
+            });
+
+            grid.appendChild(cell);
+        }
+    }
+}
+window.onload = async () => {
+    await resetEnv();
+};
+</script>
+
+</body>
+</html>

@@ -1,0 +1,17 @@
+name: disaster-relief-logistics-env
+version: 1.0.0
+
+environment:
+  entrypoint: main:app
+  observation_model: Observation
+  action_model: Action
+  reward_model: Reward
+
+tasks:
+  - name: basic_delivery
+  - name: multi_stop_route
+  - name: emergency_rerouting
+
+metadata:
+  author: Vignesh
+  description: AI-powered disaster relief logistics with A* routing and real-time visualization

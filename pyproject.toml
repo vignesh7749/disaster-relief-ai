@@ -1,0 +1,22 @@
+[project]
+name = "disaster-relief-ai"
+version = "0.1.0"
+description = "AI-powered disaster logistics environment with A* routing"
+authors = [
+    { name = "Vignesh" }
+]
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic>=2.9.0",
+    "requests",
+    "openai",
+    "openenv>=0.1.0"
+]
+
+[project.scripts]
+server = "main:main"
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
