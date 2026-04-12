@@ -9,8 +9,13 @@ environment:
 
 tasks:
   - name: basic_delivery
+    grader: grade_basic_delivery
+
   - name: multi_stop_route
+    grader: grade_multi_stop_route
+
   - name: emergency_rerouting
+    grader: grade_emergency_rerouting
 
 metadata:
   author: Vignesh
