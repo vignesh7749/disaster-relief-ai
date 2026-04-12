@@ -38,19 +38,18 @@ class Grader:
             steps += 1
 
         return self._score(env)
-
     def _score(self, env: DisasterEnv) -> float:
         total = env.successful_deliveries + len(env.pending_deliveries)
-
         if total == 0:
             score = 0.5
         else:
             score = env.successful_deliveries / total
-
-        # 🔥 STRICT FIX — NEVER allow 0 or 1
         if score <= 0.0:
-            score = 0.01
-        elif score >= 1.0:
-            score = 0.99
-
+            return 0.01
+        if score >= 1.0:
+            return 0.99
+        if score < 0.01:
+            return 0.01
+        if score > 0.99:
+            return 0.99
         return float(score)
