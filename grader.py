@@ -14,7 +14,11 @@ class Grader:
                 break
 
             target = env.pending_deliveries[0].location
-            env.step(Action(move=target, charge=False))
+            state, reward, done, _ = env.step(Action(move=target, charge=False))
+
+            if done:
+                break
+
             steps += 1
 
         return 0.5  # 🔥 SAFE SCORE
@@ -30,7 +34,11 @@ class Grader:
                 break
 
             target = env.pending_deliveries[0].location
-            env.step(Action(move=target, charge=False))
+            state, reward, done, _ = env.step(Action(move=target, charge=False))
+
+            if done:
+                break
+
             steps += 1
 
         return 0.6  # 🔥 SAFE SCORE
@@ -40,6 +48,7 @@ class Grader:
         env = DisasterEnv()
         env.reset()
 
+        # simulate obstacle
         env.blocked_cells.append((5, 5))
 
         steps = 0
@@ -48,7 +57,11 @@ class Grader:
                 break
 
             target = env.pending_deliveries[0].location
-            env.step(Action(move=target, charge=False))
+            state, reward, done, _ = env.step(Action(move=target, charge=False))
+
+            if done:
+                break
+
             steps += 1
 
         return 0.7  # 🔥 SAFE SCORE
