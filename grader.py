@@ -7,7 +7,7 @@ class Grader:
     Evaluates environment performance across tasks.
     """
 
-    def basic_delivery(self) -> float:
+    def grade_basic_delivery(self) -> float:
         env = DisasterEnv()
         env.reset()
 
@@ -23,7 +23,7 @@ class Grader:
 
         return self._score(env)
 
-    def multi_stop_route(self) -> float:
+    def grade_multi_stop_route(self) -> float:
         env = DisasterEnv()
         env.reset()
 
@@ -33,7 +33,7 @@ class Grader:
 
         return self._run(env)
 
-    def emergency_rerouting(self) -> float:
+    def grade_emergency_rerouting(self) -> float:
         env = DisasterEnv()
         env.reset()
 
