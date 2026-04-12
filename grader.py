@@ -10,34 +10,18 @@ class Grader:
     def grade_basic_delivery(self) -> float:
         env = DisasterEnv()
         env.reset()
-
-        steps = 0
-
-        while steps < 50:
-            if not env.pending_deliveries:
-                break
-
-            target = env.pending_deliveries[0].location
-            env.step(Action(move=target, charge=False))
-            steps += 1
-
-        return self._score(env)
+        return self._run(env)
 
     def grade_multi_stop_route(self) -> float:
         env = DisasterEnv()
         env.reset()
-
-        env.pending_deliveries = [
-            d for d in env.pending_deliveries
-        ]
-
         return self._run(env)
 
     def grade_emergency_rerouting(self) -> float:
         env = DisasterEnv()
         env.reset()
 
-        # simulate new blocked path mid-run
+        # simulate obstacle
         env.blocked_cells.append((5, 5))
 
         return self._run(env)
@@ -54,11 +38,19 @@ class Grader:
             steps += 1
 
         return self._score(env)
+
     def _score(self, env: DisasterEnv) -> float:
         total = env.successful_deliveries + len(env.pending_deliveries)
+
         if total == 0:
             score = 0.5
         else:
             score = env.successful_deliveries / total
-        score = max(0.01, min(0.99, score))
+
+        # 🔥 STRICT FIX — NEVER allow 0 or 1
+        if score <= 0.0:
+            score = 0.01
+        elif score >= 1.0:
+            score = 0.99
+
         return float(score)
