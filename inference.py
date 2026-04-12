@@ -4,6 +4,7 @@ import heapq
 from typing import Tuple, List, Dict, Any
 from openai import OpenAI
 
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -87,8 +88,8 @@ class SmartAgent:
     def decide_action(self, state: Dict[str, Any]) -> Dict[str, Any]:
         location = tuple(state["vehicle_location"])
         blocked = [tuple(b) for b in state["blocked_cells"]]
-        deliveries = state["pending_deliveries"]
-
+        deliveries = state.get("pending_deliveries", [])
+        
         # 🔋 Battery-aware logic
         if state["battery_level"] < self.BATTERY_THRESHOLD:
             logger.info("STEP: Charging due to low battery")
@@ -115,42 +116,46 @@ import requests
 def run() -> None:
     agent = SmartAgent()
 
-    logger.info("START")
+    print("[START] task=DisasterRelief", flush=True)
+
+    import requests
 
     try:
-        import requests
         state = requests.post(f"{API_BASE_URL}/reset").json()
-    except Exception as e:
-        logger.error(f"Failed to reset env: {e}")
-        logger.info("END")
+    except Exception:
+        print("[END] task=DisasterRelief score=0.0 steps=0", flush=True)
         return
 
     done = False
+    step = 0
+    total_reward = 0.0
 
     while not done:
-        try:
-            deliveries = state.get("pending_deliveries", [])
+        deliveries = state.get("pending_deliveries", [])
 
-            if not deliveries:
-                logger.info("No pending deliveries")
-                break
-
-            action = agent.decide_action(state)
-
-            result = requests.post(
-                f"{API_BASE_URL}/step",
-                json=action
-            ).json()
-
-            state = result.get("observation", {})
-            done = result.get("done", True)
-
-            logger.info(f"STEP: {result}")
-
-        except Exception as e:
-            logger.error(f"Error during step: {e}")
+        if not deliveries:
             break
 
-    logger.info("END")
+        action = agent.decide_action(state)
+
+        result = requests.post(
+            f"{API_BASE_URL}/step",
+            json=action
+        ).json()
+
+        state = result.get("observation", {})
+        done = result.get("done", True)
+
+        reward = result.get("reward", {}).get("value", 0.0)
+
+        step += 1
+        total_reward += reward
+
+        print(f"[STEP] step={step} reward={reward}", flush=True)
+
+    score = max(0.0, min(1.0, total_reward / 100.0))
+
+    print(f"[END] task=DisasterRelief score={score} steps={step}", flush=True)
+
 if __name__ == "__main__":
     run()
