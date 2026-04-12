@@ -117,28 +117,40 @@ def run() -> None:
 
     logger.info("START")
 
-    # Use requests for actual API calls
-    state = requests.post(f"{API_BASE_URL}/reset").json()
+    try:
+        import requests
+        state = requests.post(f"{API_BASE_URL}/reset").json()
+    except Exception as e:
+        logger.error(f"Failed to reset env: {e}")
+        logger.info("END")
+        return
 
     done = False
 
     while not done:
-        if not state["pending_deliveries"]:
+        try:
+            deliveries = state.get("pending_deliveries", [])
+
+            if not deliveries:
+                logger.info("No pending deliveries")
+                break
+
+            action = agent.decide_action(state)
+
+            result = requests.post(
+                f"{API_BASE_URL}/step",
+                json=action
+            ).json()
+
+            state = result.get("observation", {})
+            done = result.get("done", True)
+
+            logger.info(f"STEP: {result}")
+
+        except Exception as e:
+            logger.error(f"Error during step: {e}")
             break
 
-        action = agent.decide_action(state)
-
-        result = requests.post(
-            f"{API_BASE_URL}/step",
-            json=action
-        ).json()
-
-        state = result["observation"]
-        done = result["done"]
-
-        logger.info(f"STEP: {result}")
-
     logger.info("END")
-
 if __name__ == "__main__":
     run()
